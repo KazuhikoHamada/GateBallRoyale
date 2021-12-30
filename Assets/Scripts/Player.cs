@@ -10,28 +10,30 @@ using System;
 public class Player : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, IEndDragHandler, IDragHandler
 {
     [SerializeField] private Rigidbody2D _rb;
+    [SerializeField] private LineRenderer _direction = null;
 
     public Vector2 Position { get { return transform.position; } set { transform.position = value; } }
 
-    private Vector2 _beginPosition;
-
     private bool _isShot = false;
-
 
     private float _preveMagnitude = 0f;
 
-    private float _maxMagnitude = 0f;
+    private float _maxMagnitude = 1f;
 
-    private float _stopMagnitude = 0.7f;
+    private float _stopMagnitude = 1.0f;
 
     private float _delaySeconds = 3.0f;
 
-    private float _power = 5f;
+    private float _power = 5.0f;
 
     private IDisposable _disposable = null;
 
+    private Vector2 _force;
+
     private void Start()
     {
+        _direction.enabled = false;
+
         this.OnCollisionEnter2DAsObservable().Where(_ => _disposable == null).Subscribe(_ => 
         {
             _disposable = GetMoveObservable();
@@ -76,22 +78,34 @@ public class Player : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, IE
     {
         //Debug.Log("OnPointerClick");
 
-        
     }
-
 
     public void OnBeginDrag(PointerEventData eventData)
     {
         //Debug.Log("OnBeginDrag");
 
-        _beginPosition = Position;
+        _direction.enabled = true;
+        _direction.SetPosition(0, Position);
+        _direction.SetPosition(1, Position);
     }
 
     public void OnDrag(PointerEventData eventData)
     {
         //Debug.Log("OnDrag");
 
+        Vector2 targetPosition = GetMousePosition(eventData);
 
+        _force = Position - targetPosition;
+
+        if (_force.magnitude > _maxMagnitude * _maxMagnitude)
+        {
+            _force *= _maxMagnitude / _force.magnitude; 
+        }
+
+        var direction = Position + _force;
+
+        _direction.SetPosition(0, new Vector3(Position.x, Position.y, Vector3.back.z));
+        _direction.SetPosition(1, new Vector3(direction.x, direction.y, Vector3.back.z));
 
     }
 
@@ -99,32 +113,28 @@ public class Player : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, IE
     {
         if (_isShot) return;
 
-        //Debug.Log($"IDisposable:{_disposable}");
+        _direction.enabled = false;
 
-        Vector2 targetPosition = Camera.main.ScreenToWorldPoint(eventData.position);
-
-        var direction = (targetPosition - _beginPosition).normalized * -1f;
-
-        var distance = Vector2.Distance(targetPosition, _beginPosition);
-
-        Vector2 power = direction * distance * _power;
-
+        Vector2 power = _force * _power;
+        
         _preveMagnitude = (power / _rb.mass).magnitude;
 
         Debug.Log($"OnEndDrag. {_preveMagnitude}");
 
         _rb.AddForce(power, ForceMode2D.Impulse);
 
-        //_rb.AddForce(direction * distance * 10f);
-
         _isShot = true;
-
 
         _disposable?.Dispose();
         _disposable = null;
 
         _disposable = GetMoveObservable();
 
+    }
+
+    private Vector2 GetMousePosition(PointerEventData eventData)
+    {
+        return Camera.main.ScreenToWorldPoint(eventData.position);
     }
 
     private void OnDestroy()
