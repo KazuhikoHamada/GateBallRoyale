@@ -10,21 +10,19 @@ using System;
 public class Player : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, IEndDragHandler, IDragHandler
 {
     [SerializeField] private Rigidbody2D _rb;
-    [SerializeField] private LineRenderer _direction = null;
+    [SerializeField] private LineRenderer _direction;
+    [SerializeField] private float _maxMagnitude;
+    [SerializeField] private float _stopMagnitude;
+    [SerializeField] private float _delaySeconds;
+    [SerializeField] private float _power;
+    [SerializeField] private float _linearDrag;
+    [SerializeField] private float _mass;
 
     public Vector2 Position { get { return transform.position; } set { transform.position = value; } }
 
     private bool _isShot = false;
 
     private float _preveMagnitude = 0f;
-
-    private float _maxMagnitude = 1f;
-
-    private float _stopMagnitude = 1.0f;
-
-    private float _delaySeconds = 3.0f;
-
-    private float _power = 5.0f;
 
     private IDisposable _disposable = null;
 
@@ -33,6 +31,9 @@ public class Player : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, IE
     private void Start()
     {
         _direction.enabled = false;
+
+        _rb.drag = _linearDrag;
+        _rb.mass = _mass;
 
         this.OnCollisionEnter2DAsObservable().Where(_ => _disposable == null).Subscribe(_ => 
         {
@@ -45,13 +46,13 @@ public class Player : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, IE
     {
         return Observable.EveryFixedUpdate().DelaySubscription(TimeSpan.FromSeconds(_delaySeconds)).TakeWhile(_ => IsMoved()).Subscribe(_ =>
         {
-            Debug.Log($"magnitude:{_rb.velocity.magnitude}, {_preveMagnitude - _rb.velocity.magnitude}");
+            //Debug.Log($"magnitude:{_rb.velocity.magnitude}, {_preveMagnitude - _rb.velocity.magnitude}");
 
             _preveMagnitude = _rb.velocity.magnitude;
 
         }, () =>
         {
-            Debug.Log($"complete.");
+            //Debug.Log($"complete.");
 
             _preveMagnitude = 0f;
 
@@ -67,7 +68,7 @@ public class Player : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, IE
     private bool IsMoved()
     {
         // falseになるとストップする
-        Debug.Log($"_preveMagnitude:{_preveMagnitude}, _rb.velocity.magnitude:{_rb.velocity.magnitude}, {_preveMagnitude - _rb.velocity.magnitude}");
+        //Debug.Log($"_preveMagnitude:{_preveMagnitude}, _rb.velocity.magnitude:{_rb.velocity.magnitude}, {_preveMagnitude - _rb.velocity.magnitude}");
 
         //return _preveMagnitude - _rb.velocity.magnitude >= _stopMagnitude;
         return _rb.velocity.magnitude >= _stopMagnitude;
